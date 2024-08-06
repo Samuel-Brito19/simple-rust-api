@@ -1,7 +1,12 @@
 use actix_cors::Cors;
-use actix_web::{http::header, HttpServer};
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+use actix_web::{http::header, middleware::Logger, App, HttpServer};
 use dotenv::dotenv;
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+
+pub struct AppState {
+    db: Pool<Postgres>,
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     if std::env::var_os("RUST_LOG").is_none() {
@@ -26,7 +31,7 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    println!("Server starded successfully!")
+    println!("Server starded successfully!");
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -35,8 +40,18 @@ async fn main() -> std::io::Result<()> {
             .allowed_headers(vec![
                 header::CONTENT_TYPE,
                 header::AUTHORIZATION,
-                header::ACCEPT
+                header::ACCEPT,
             ])
             .supports_credentials();
+
+        App::new()
+            .app_data(actix_web::web::Data::new(AppState { db: pool.clone() }))
+            .wrap(cors)
+            .wrap(Logger::default())
     })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
+
+    //Ok(())
 }
