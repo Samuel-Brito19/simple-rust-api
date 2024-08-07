@@ -1,4 +1,4 @@
-DB_DOCKER_CONTAINER=hello_world
+DB_DOCKER_CONTAINER=pgsql-dev
 
 install:
 # uncomment and indent
@@ -19,4 +19,7 @@ build:
 	cargo build
 
 create_docker_container:
-	docker run --name ${DB_DOCKER_CONTAINER} -p 8080:8080 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=secret -d postgres:12-alpine
+	docker run --name ${DB_DOCKER_CONTAINER} -p 8080:8080 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=secret -d postgres:12-alpine
+
+create_postgres_db:
+	docker exec -it ${DB_DOCKER_CONTAINER} createdb --username=postgres --owner=root dbname
