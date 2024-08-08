@@ -1,4 +1,4 @@
-use actix_web::web;
+use actix_web::{web, HttpResponse, Responder};
 
 use crate::AppState;
 
@@ -87,9 +87,39 @@ async fn get_game_by_id(path: web::Path<uuid::Uuid>, data: web::Data<AppState>) 
     }
 }
 
-#[put("/games/game/{id}")]
-async fn update_game_by(
-    path: web::Path<uuid::Uuid, data: web::Data<AppState>, body: web::Json<UpdateGamesSchema>>,
+#[post("/game/game/{id}")]
+async fn create_note_handler(
+    body: web::Json<CreateNoteSchema>,
+    data: web::Data<AppState>,
 ) -> impl Responder {
-    let game_id = path.into_inner();
+    let query_result = sqlx::query_as!(
+        NoteModel,
+        "INSERT INTO notes (title,content,category) VALUES ($1, $2, $3) RETURNING *",
+        body.title.to_string(),
+        body.content.to_string(),
+        body.category.to_owned().unwrap_or("".to_string())
+    )
+    .fetch_one(&data.db)
+    .await;
+
+    match query_result {
+        Ok(note) => {
+            let note_response = serde_json::json!({"status": "success","data": serde_json::json!({
+                "note": note
+            })});
+
+            return HttpResponse::Ok().json(note_response);
+        }
+        Err(e) => {
+            if e.to_string()
+                .contains("duplicate key value violates unique constraint")
+            {
+                return HttpResponse::BadRequest()
+                .json(serde_json::json!({"status": "fail","message": "Note with that title already exists"}));
+            }
+
+            return HttpResponse::InternalServerError()
+                .json(serde_json::json!({"status": "error","message": format!("{:?}", e)}));
+        }
+    }
 }
